@@ -1,0 +1,38 @@
+services:
+  {{ customer_name }}-file:
+    build:
+      context: .
+    restart: unless-stopped
+    networks:
+      - traefik_reverse_proxy
+    volumes:
+      - ..:/var/www
+    depends_on:
+      - {{ customer_name }}-file-db
+    entrypoint: ["/var/www/docker/entrypoint.sh"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{ customer_name }}-file.rule=Host(`{{ subdomain_file }}.{{ domain }}`)"
+      - "traefik.http.routers.{{ customer_name }}-file.entrypoints=websecure"
+      - "traefik.http.routers.{{ customer_name }}-file.tls.certresolver=myresolver"
+      - "traefik.http.services.{{ customer_name }}-file.loadbalancer.server.port=80"
+
+  {{ customer_name }}-file-db:
+    image: mariadb:10.6.20-focal
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ mysql_root_password }}
+      MYSQL_DATABASE: {{ mysql_db_name }}
+      MYSQL_USER: {{ mysql_user }}
+      MYSQL_PASSWORD: {{ mysql_password }}
+      INSTANCE_NAME: {{ customer_name }}
+    volumes:
+      - ./init/:/docker-entrypoint-initdb.d/
+      - ./db:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - traefik_reverse_proxy
+    
+networks:
+  traefik_reverse_proxy:
+    external: true
